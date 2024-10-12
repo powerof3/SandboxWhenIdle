@@ -45,8 +45,27 @@ namespace Hooks
 
 		static void Install()
 		{
-			REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(28275, 29021) };  // BGSProcedureSandboxExecState::EvaluateReferenceforUse
-			stl::write_thunk_call<CanInteractWith>(target.address() + OFFSET(0x2AD, 0x221));
+			REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(28275, 29021), OFFSET(0x2AD, 0x221) };  // BGSProcedureSandboxExecState::EvaluateReferenceforUse
+			stl::write_thunk_call<CanInteractWith>(target.address());
+		}
+	};
+
+	struct IsAnOwner
+	{
+		static bool thunk(RE::TESObjectREFR* a_this, RE::Actor* a_actor, bool a_useFaction, bool a_requiresOwner)
+		{
+			if (a_actor && a_actor->IsPlayerRef() && AutoSandboxHandler::GetSingleton()->IsAutoSandboxing()) {
+				return true;
+			}
+			return func(a_this, a_actor, a_useFaction, a_requiresOwner);
+		}
+		static inline REL::Relocation<decltype(thunk)> func;
+
+		static void Install()
+		{
+			REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(28275, 29021) };      // BGSProcedureSandboxExecState::EvaluateReferenceforUse
+			stl::write_thunk_call<IsAnOwner>(target.address() + OFFSET(0x2C6, 0x23A));  // Furniture
+			stl::write_thunk_call<IsAnOwner>(target.address() + OFFSET(0x152, 0x151));  // IdleMarker
 		}
 	};
 
@@ -57,5 +76,6 @@ namespace Hooks
 		stl::write_vfunc<RE::AutoVanityState, AutoVanityStateEnd>();
 
 		CanInteractWith::Install();
+		//IsAnOwner::Install();
 	}
 }

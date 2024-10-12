@@ -62,7 +62,7 @@ bool AutoSandboxHandler::StartSandbox()
 				player->SetAIDriven(true);
 				player->currentProcess->SetRunOncePackage(nullptr, player);
 				player->currentProcess->ComputeLastTimeProcessed();
-				player->PutCreatedPackage(package, true, false);
+				player->PutCreatedPackage(package, false, false);
 
 				SetHeadTracking(true);
 				UpdateCameraForSandbox(true);
@@ -103,24 +103,22 @@ void AutoSandboxHandler::UpdateCameraForSandbox(bool a_enable)
 		isInFirstPerson = !improvedCameraInstalled && playerCamera->IsInFirstPerson();  // don't switch if IC is installed
 		if (isInFirstPerson) {
 			playerCamera->PushCameraState(RE::CameraState::kThirdPerson);
-		}
-		if (auto tps = skyrim_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->currentState.get())) {
-			// default tps is too zoomed in
-			currentZoom = tps->currentZoomOffset;
-			targetZoom = tps->targetZoomOffset;
-			
-			tps->currentZoomOffset = 0.8f;
-			tps->targetZoomOffset = 0.8f;
+			if (auto tps = skyrim_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->currentState.get())) {
+				// default tps is too zoomed in
+				currentZoom = tps->currentZoomOffset;
+				targetZoom = tps->targetZoomOffset;
+				if (currentZoom < 0.8f) {
+					tps->currentZoomOffset = 0.8f;
+				}
+				if (targetZoom < 0.8f) {
+					tps->targetZoomOffset = 0.8f;
+				}
+			}
 		}
 		RE::SendHUDMessage::PushHUDMode("AutoVanity");
 	} else {
 		if (isInFirstPerson) {
 			playerCamera->ForceFirstPerson();
-		} else {
-			if (auto tps = skyrim_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->currentState.get())) {
-				tps->currentZoomOffset = currentZoom;
-				tps->targetZoomOffset = targetZoom;
-			}		
 		}
 		playerCamera->idleTimer = 0.0f;
 		RE::SendHUDMessage::PopHUDMode("AutoVanity");
