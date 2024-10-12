@@ -36,8 +36,8 @@ namespace Hooks
 	{
 		static bool thunk(RE::TESFurniture* a_this, RE::Actor* a_actor)
 		{
-			if (a_actor->IsPlayerRef() && AutoSandboxHandler::GetSingleton()->IsAutoSandboxing()) {
-				return a_this->workBenchData.benchType.get() == RE::TESFurniture::WorkBenchData::BenchType::kNone;
+			if (a_actor && a_actor->IsPlayerRef() && AutoSandboxHandler::GetSingleton()->IsAutoSandboxing()) {
+				return a_this && a_this->workBenchData.benchType.get() == RE::TESFurniture::WorkBenchData::BenchType::kNone;
 			}
 			return func(a_this, a_actor);
 		}

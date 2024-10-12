@@ -2,7 +2,7 @@
 
 void AutoSandboxHandler::Register()
 {
-	if (const auto inputMgr = RE::BSInputDeviceManager::GetSingleton()) {				
+	if (const auto inputMgr = RE::BSInputDeviceManager::GetSingleton()) {
 		inputMgr->AddEventSink<RE::InputEvent*>(this);
 		registeredForInput = true;
 		logger::info("Registered for hotkey event");
@@ -66,7 +66,6 @@ bool AutoSandboxHandler::StartSandbox()
 
 				SetHeadTracking(true);
 				UpdateCameraForSandbox(true);
-
 			}
 		} else {
 			sandboxCheckFailed = true;
@@ -106,16 +105,22 @@ void AutoSandboxHandler::UpdateCameraForSandbox(bool a_enable)
 			playerCamera->PushCameraState(RE::CameraState::kThirdPerson);
 		}
 		if (auto tps = skyrim_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->currentState.get())) {
-			if (isInFirstPerson) {
-				// default tps is too zoomed in
-				tps->currentZoomOffset = 0.8f;
-				tps->targetZoomOffset = 0.8f;
-			}
+			// default tps is too zoomed in
+			currentZoom = tps->currentZoomOffset;
+			targetZoom = tps->targetZoomOffset;
+			
+			tps->currentZoomOffset = 0.8f;
+			tps->targetZoomOffset = 0.8f;
 		}
 		RE::SendHUDMessage::PushHUDMode("AutoVanity");
 	} else {
 		if (isInFirstPerson) {
 			playerCamera->ForceFirstPerson();
+		} else {
+			if (auto tps = skyrim_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->currentState.get())) {
+				tps->currentZoomOffset = currentZoom;
+				tps->targetZoomOffset = targetZoom;
+			}		
 		}
 		playerCamera->idleTimer = 0.0f;
 		RE::SendHUDMessage::PopHUDMode("AutoVanity");

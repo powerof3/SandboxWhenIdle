@@ -32,6 +32,8 @@ private:
 	bool            headTrackingState{ false };
 	bool            isNPCMode{ false };
 	bool            improvedCameraInstalled{ false };
+	float           currentZoom;
+	float           targetZoom;
 	RE::TESPackage* exteriorPackage{ nullptr };
 	RE::TESPackage* interiorPackage{ nullptr };
 	RE::BGSKeyword* furnitureForceThirdPerson{ nullptr };
