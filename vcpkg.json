@@ -1,0 +1,14 @@
+{
+  "name": "sandbox-when-idle",
+  "version-string": "1.0.0",
+  "description": "",
+  "homepage": "",
+  "license": "MIT",
+  "dependencies": [
+    "clib-util",
+    "rsm-binary-io",
+    "spdlog",
+    "xbyak"
+  ],
+  "builtin-baseline": "9558037875497b9db8cf38fcd7db68ec661bffe7"
+}
