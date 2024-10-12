@@ -2,14 +2,10 @@
 
 class AutoSandboxHandler :
 	public ISingleton<AutoSandboxHandler>,
-	public RE::PlayerInputHandler
+	public RE::BSTEventSink<RE::InputEvent*>,
+	public RE::BSTEventSink<RE::TESLoadGameEvent>
 {
 public:
-	~AutoSandboxHandler() override = default;  // 00
-
-	bool CanProcess(RE::InputEvent* a_event) override;                                      // 01
-	void ProcessButton(RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data) override;  // 04
-
 	void Register();
 
 	bool IsAutoSandboxing() const;
@@ -19,18 +15,26 @@ public:
 
 	void ResetSandboxCheck();
 
+	void UpdateCameraForSandbox(bool a_enable);
+	void SetHeadTracking(bool a_enable);
+
 	RE::TESPackage* GetPackage();
 
 private:
+	RE::BSEventNotifyControl ProcessEvent(RE::InputEvent* const* a_evn, RE::BSTEventSource<RE::InputEvent*>*) override;
+	RE::BSEventNotifyControl ProcessEvent(const RE::TESLoadGameEvent* a_evn, RE::BSTEventSource<RE::TESLoadGameEvent>*) override;
+	
 	// members
 	bool            autoSandBoxing{ false };
 	bool            sandboxCheckFailed{ false };
+	bool            registeredForInput{ false };
 	bool            isInFirstPerson{ false };
+	bool            headTrackingState{ false };
+	bool            isNPCMode{ false };
 	bool            improvedCameraInstalled{ false };
 	RE::TESPackage* exteriorPackage{ nullptr };
 	RE::TESPackage* interiorPackage{ nullptr };
 	RE::BGSKeyword* furnitureForceThirdPerson{ nullptr };
 	RE::BGSKeyword* furnitureForceFirstPerson{ nullptr };
 	RE::BGSKeyword* furnitureSpecial{ nullptr };
-
 };

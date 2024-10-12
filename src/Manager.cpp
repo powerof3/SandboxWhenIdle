@@ -1,22 +1,17 @@
 #include "Manager.h"
 
-bool AutoSandboxHandler::CanProcess(RE::InputEvent* a_event)
-{
-	return IsAutoSandboxing() && a_event->GetEventType() == RE::INPUT_EVENT_TYPE::kButton;
-}
-
-void AutoSandboxHandler::ProcessButton(RE::ButtonEvent* a_event, [[maybe_unused]] RE::PlayerControlsData* a_data)
-{
-	if (a_event && a_event->IsDown()) {
-		if (autoSandBoxing) {
-			StopSandbox();
-		}
-	}
-}
-
 void AutoSandboxHandler::Register()
 {
-	RE::PlayerControls::GetSingleton()->handlers.emplace_back(this);
+	if (const auto inputMgr = RE::BSInputDeviceManager::GetSingleton()) {				
+		inputMgr->AddEventSink<RE::InputEvent*>(this);
+		registeredForInput = true;
+		logger::info("Registered for hotkey event");
+	}
+
+	if (auto scripts = RE::ScriptEventSourceHolder::GetSingleton()) {
+		scripts->AddEventSink<RE::TESLoadGameEvent>(this);
+		logger::info("Registered for load game event");
+	}
 
 	exteriorPackage = RE::TESForm::LookupByEditorID<RE::TESPackage>("SandboxWhenIdleExterior");
 	interiorPackage = RE::TESForm::LookupByEditorID<RE::TESPackage>("SandboxWhenIdleInterior");
@@ -35,7 +30,7 @@ bool AutoSandboxHandler::IsAutoSandboxing() const
 
 bool AutoSandboxHandler::CanSandbox() const
 {
-	if (sandboxCheckFailed) {
+	if (!registeredForInput || sandboxCheckFailed) {
 		return false;
 	}
 
@@ -44,7 +39,7 @@ bool AutoSandboxHandler::CanSandbox() const
 		return false;
 	}
 
-	if (player->IsInCombat()) {
+	if (player->IsDead() || player->IsInCombat() || player->IsSneaking() || player->IsOnMount()) {
 		return false;
 	}
 
@@ -61,25 +56,17 @@ bool AutoSandboxHandler::StartSandbox()
 		if (CanSandbox()) {
 			if (auto package = GetPackage()) {
 				autoSandBoxing = true;
-				isInFirstPerson = !improvedCameraInstalled && RE::PlayerCamera::GetSingleton()->IsInFirstPerson(); // don't switch if IC is installed
-
-				if (isInFirstPerson){
-					RE::PlayerCamera::GetSingleton()->PushCameraState(RE::CameraState::kThirdPerson);
-					if (auto tps = skyrim_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->currentState.get())) {
-						// default tps is too zoomed in
-						tps->currentZoomOffset = 0.8f;
-						tps->targetZoomOffset = 0.8f;
-					}
-				}		
 
 				auto player = RE::PlayerCharacter::GetSingleton();
 				player->DrawWeaponMagicHands(false);
 				player->SetAIDriven(true);
 				player->currentProcess->SetRunOncePackage(nullptr, player);
 				player->currentProcess->ComputeLastTimeProcessed();
-				player->PutCreatedPackage(package, false, false);
+				player->PutCreatedPackage(package, true, false);
 
-				RE::SendHUDMessage::PushHUDMode("AutoVanity");
+				SetHeadTracking(true);
+				UpdateCameraForSandbox(true);
+
 			}
 		} else {
 			sandboxCheckFailed = true;
@@ -94,7 +81,6 @@ void AutoSandboxHandler::StopSandbox()
 	autoSandBoxing = false;
 
 	auto player = RE::PlayerCharacter::GetSingleton();
-
 	player->StopInteractingQuick(true);
 	if (auto currentProcess = player->currentProcess) {
 		currentProcess->AddToProcedureIndexRunning(player, 1);
@@ -102,12 +88,8 @@ void AutoSandboxHandler::StopSandbox()
 	}
 	player->SetAIDriven(false);
 
-	if (isInFirstPerson) {
-		RE::PlayerCamera::GetSingleton()->ForceFirstPerson();
-	}
-
-	RE::PlayerCamera::GetSingleton()->idleTimer = 0.0f;
-	RE::SendHUDMessage::PopHUDMode("AutoVanity");
+	SetHeadTracking(false);
+	UpdateCameraForSandbox(false);
 }
 
 void AutoSandboxHandler::ResetSandboxCheck()
@@ -115,8 +97,78 @@ void AutoSandboxHandler::ResetSandboxCheck()
 	sandboxCheckFailed = false;
 }
 
+void AutoSandboxHandler::UpdateCameraForSandbox(bool a_enable)
+{
+	auto playerCamera = RE::PlayerCamera::GetSingleton();
+	if (a_enable) {
+		isInFirstPerson = !improvedCameraInstalled && playerCamera->IsInFirstPerson();  // don't switch if IC is installed
+		if (isInFirstPerson) {
+			playerCamera->PushCameraState(RE::CameraState::kThirdPerson);
+		}
+		if (auto tps = skyrim_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->currentState.get())) {
+			if (isInFirstPerson) {
+				// default tps is too zoomed in
+				tps->currentZoomOffset = 0.8f;
+				tps->targetZoomOffset = 0.8f;
+			}
+		}
+		RE::SendHUDMessage::PushHUDMode("AutoVanity");
+	} else {
+		if (isInFirstPerson) {
+			playerCamera->ForceFirstPerson();
+		}
+		playerCamera->idleTimer = 0.0f;
+		RE::SendHUDMessage::PopHUDMode("AutoVanity");
+	}
+}
+
+void AutoSandboxHandler::SetHeadTracking(bool a_enable)
+{
+	auto player = RE::PlayerCharacter::GetSingleton();
+
+	if (a_enable) {
+		headTrackingState = player->actorState2.headTracking;
+		player->GetGraphVariableBool("IsNPC", isNPCMode);
+
+		player->actorState2.headTracking = true;
+		player->SetGraphVariableBool("IsNPC", true);
+	} else {
+		player->actorState2.headTracking = headTrackingState;
+		player->SetGraphVariableBool("IsNPC", isNPCMode);
+	}
+}
+
 RE::TESPackage* AutoSandboxHandler::GetPackage()
 {
 	auto parentCell = RE::PlayerCharacter::GetSingleton()->parentCell;
 	return parentCell && parentCell->IsInteriorCell() ? interiorPackage : exteriorPackage;
+}
+
+RE::BSEventNotifyControl AutoSandboxHandler::ProcessEvent(RE::InputEvent* const* a_evn, RE::BSTEventSource<RE::InputEvent*>*)
+{
+	if (!a_evn || !IsAutoSandboxing()) {
+		return RE::BSEventNotifyControl::kContinue;
+	}
+
+	for (auto event = *a_evn; event; event = event->next) {
+		if (const auto buttonEvent = event->AsButtonEvent(); buttonEvent && buttonEvent->IsDown()) {
+			StopSandbox();
+			break;
+		}
+	}
+
+	return RE::BSEventNotifyControl::kContinue;
+}
+
+RE::BSEventNotifyControl AutoSandboxHandler::ProcessEvent(const RE::TESLoadGameEvent* a_evn, RE::BSTEventSource<RE::TESLoadGameEvent>*)
+{
+	if (!a_evn) {
+		return RE::BSEventNotifyControl::kContinue;
+	}
+
+	if (IsAutoSandboxing()) {
+		StopSandbox();
+	}
+
+	return RE::BSEventNotifyControl::kContinue;
 }
