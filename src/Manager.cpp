@@ -19,6 +19,7 @@ void AutoSandboxHandler::Register()
 	furnitureForceFirstPerson = RE::BGSDefaultObjectManager::GetSingleton()->GetObject<RE::BGSKeyword>(RE::DEFAULT_OBJECT::kKeywordFurnitureForces1stPerson);
 	furnitureForceThirdPerson = RE::BGSDefaultObjectManager::GetSingleton()->GetObject<RE::BGSKeyword>(RE::DEFAULT_OBJECT::kKeywordFurnitureForces3rdPerson);
 	furnitureSpecial = RE::BGSDefaultObjectManager::GetSingleton()->GetObject<RE::BGSKeyword>(RE::DEFAULT_OBJECT::kKeywordSpecialFurniture);
+	resetRootIdle = RE::TESForm::LookupByEditorID<RE::TESIdleForm>("ResetRoot");
 
 	improvedCameraInstalled = GetModuleHandle(L"ImprovedCameraSE.dll") != nullptr;
 }
@@ -82,6 +83,9 @@ void AutoSandboxHandler::StopSandbox()
 	auto player = RE::PlayerCharacter::GetSingleton();
 	player->StopInteractingQuick(true);
 	if (auto currentProcess = player->currentProcess) {
+		currentProcess->StopCurrentIdle(player, true);
+		currentProcess->PlayIdle(player, resetRootIdle, nullptr);
+		
 		currentProcess->AddToProcedureIndexRunning(player, 1);
 		currentProcess->SetRunOncePackage(nullptr, player);
 	}

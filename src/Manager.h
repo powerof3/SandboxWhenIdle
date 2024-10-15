@@ -39,4 +39,5 @@ private:
 	RE::BGSKeyword* furnitureForceThirdPerson{ nullptr };
 	RE::BGSKeyword* furnitureForceFirstPerson{ nullptr };
 	RE::BGSKeyword* furnitureSpecial{ nullptr };
+	RE::TESIdleForm* resetRootIdle{ nullptr };
 };

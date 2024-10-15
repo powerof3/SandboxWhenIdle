@@ -37,7 +37,7 @@ namespace Hooks
 		static bool thunk(RE::TESFurniture* a_this, RE::Actor* a_actor)
 		{
 			if (a_actor && a_actor->IsPlayerRef() && AutoSandboxHandler::GetSingleton()->IsAutoSandboxing()) {
-				return a_this && a_this->workBenchData.benchType.get() == RE::TESFurniture::WorkBenchData::BenchType::kNone;
+				return func(a_this, a_actor) && a_this->workBenchData.benchType.get() == RE::TESFurniture::WorkBenchData::BenchType::kNone;
 			}
 			return func(a_this, a_actor);
 		}
@@ -64,7 +64,7 @@ namespace Hooks
 		static void Install()
 		{
 			REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(28275, 29021) };      // BGSProcedureSandboxExecState::EvaluateReferenceforUse
-			stl::write_thunk_call<IsAnOwner>(target.address() + OFFSET(0x2C6, 0x23A));  // Furniture
+			//stl::write_thunk_call<IsAnOwner>(target.address() + OFFSET(0x2C6, 0x23A));  // Furniture
 			stl::write_thunk_call<IsAnOwner>(target.address() + OFFSET(0x152, 0x151));  // IdleMarker
 		}
 	};
@@ -76,6 +76,6 @@ namespace Hooks
 		stl::write_vfunc<RE::AutoVanityState, AutoVanityStateEnd>();
 
 		CanInteractWith::Install();
-		//IsAnOwner::Install();
+		IsAnOwner::Install();
 	}
 }
