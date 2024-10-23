@@ -35,16 +35,20 @@ bool AutoSandboxHandler::CanSandbox() const
 		return false;
 	}
 
-	auto player = RE::PlayerCharacter::GetSingleton();
-	if (!player->currentProcess) {
+	const auto player = RE::PlayerCharacter::GetSingleton(); 
+	if (!player->currentProcess || player->IsDead() || player->IsInCombat() || player->IsSneaking() || player->IsOnMount() || !player->GetPlayerControls()) {
 		return false;
 	}
 
-	if (player->IsDead() || player->IsInCombat() || player->IsSneaking() || player->IsOnMount()) {
+	const auto controlMap = RE::ControlMap::GetSingleton(); 
+	constexpr auto controlFlags = static_cast<RE::ControlMap::UEFlag>(1 << 0 | 1 << 6 | 1 << 5 | 1 << 1 | 1 << 7 | 1 << 3); // Movement | Fighting | CamSwitch | Looking | Sneaking | Menu
+
+	if (controlMap && !controlMap->AreControlsEnabled(controlFlags)) {
 		return false;
 	}
 
-	if (auto processLists = RE::ProcessLists::GetSingleton(); processLists && processLists->AreHostileActorsNear(nullptr)) {
+	const auto processLists = RE::ProcessLists::GetSingleton(); 
+	if (processLists && processLists->AreHostileActorsNear(nullptr)) {
 		return false;
 	}
 
