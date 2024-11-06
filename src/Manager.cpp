@@ -35,19 +35,17 @@ bool AutoSandboxHandler::CanSandbox() const
 		return false;
 	}
 
-	const auto player = RE::PlayerCharacter::GetSingleton(); 
+	const auto player = RE::PlayerCharacter::GetSingleton();
 	if (!player->currentProcess || player->IsDead() || player->IsInCombat() || player->IsSneaking() || player->IsOnMount() || !player->GetPlayerControls()) {
 		return false;
 	}
 
-	const auto controlMap = RE::ControlMap::GetSingleton(); 
-	constexpr auto controlFlags = static_cast<RE::ControlMap::UEFlag>(1 << 0 | 1 << 6 | 1 << 5 | 1 << 1 | 1 << 7 | 1 << 3); // Movement | Fighting | CamSwitch | Looking | Sneaking | Menu
-
-	if (controlMap && !controlMap->AreControlsEnabled(controlFlags)) {
+	const auto controlMap = RE::ControlMap::GetSingleton();
+	if (controlMap && (!controlMap->IsMovementControlsEnabled() || !controlMap->IsFightingControlsEnabled() || !controlMap->IsPOVSwitchControlsEnabled() || !controlMap->IsLookingControlsEnabled() || !controlMap->IsSneakingControlsEnabled() || !controlMap->IsMenuControlsEnabled())) {
 		return false;
-	}
+	} 
 
-	const auto processLists = RE::ProcessLists::GetSingleton(); 
+	const auto processLists = RE::ProcessLists::GetSingleton();
 	if (processLists && processLists->AreHostileActorsNear(nullptr)) {
 		return false;
 	}
@@ -68,6 +66,7 @@ bool AutoSandboxHandler::StartSandbox()
 				player->currentProcess->SetRunOncePackage(nullptr, player);
 				player->currentProcess->ComputeLastTimeProcessed();
 				player->PutCreatedPackage(package, false, false);
+				player->EvaluatePackage();
 
 				SetHeadTracking(true);
 				UpdateCameraForSandbox(true);
@@ -89,7 +88,7 @@ void AutoSandboxHandler::StopSandbox()
 	if (auto currentProcess = player->currentProcess) {
 		currentProcess->StopCurrentIdle(player, true);
 		currentProcess->PlayIdle(player, resetRootIdle, nullptr);
-		
+
 		currentProcess->AddToProcedureIndexRunning(player, 1);
 		currentProcess->SetRunOncePackage(nullptr, player);
 	}
